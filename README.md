@@ -10,7 +10,7 @@
 1. [Problem Statement](#1-problem-statement)
 2. [Our Solution](#2-our-solution)
 3. [Persona & Scenario Walkthrough](#3-persona--scenario-walkthrough)
-4. [How it's built](#4-How it's built)
+4. [How it's built](#4-how-it's-built)
 5. [Parametric Triggers](#5-parametric-triggers)
 6. [Weekly Premium Model](#6-weekly-premium-model)
 7. [AI/ML Architecture](#7-aiml-architecture)
