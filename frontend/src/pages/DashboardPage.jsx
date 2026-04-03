@@ -67,7 +67,7 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="w-6 h-6 text-emerald-400" />
-              <h1 className="text-xl font-bold tracking-tight text-white">GigShield</h1>
+              <h1 className="text-xl font-bold tracking-tight text-white">Dash-Cover</h1>
             </div>
             <div className="flex items-center gap-2 bg-neutral-800 rounded-full px-3 py-1.5 border border-white/15">
               <span className={`w-2 h-2 rounded-full ${status === 'ACTIVE' ? 'bg-emerald-400' : status === 'SUCCESS' ? 'bg-amber-400' : 'bg-rose-400'} animate-pulse`} />
