@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/*
+ * Base styles — dark-mode-first to match the Tailwind layout in App.jsx.
+ * The original Vite template had a light-mode-first theme with a fixed 1126px
+ * #root width that conflicted with the Tailwind max-w-md mobile layout.
+ */
+
+:root {
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 16px/145% var(--sans);
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: #0a0a0a;
+}
+
+#root {
+  max-width: 100%;
+  min-height: 100svh;
+}
