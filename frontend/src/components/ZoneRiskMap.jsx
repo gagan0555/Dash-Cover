@@ -1,6 +1,7 @@
-import { MapContainer, TileLayer, Polygon, Tooltip, Marker } from 'react-leaflet'
+import { MapContainer, TileLayer, Polygon, Tooltip, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { useEffect } from 'react'
 
 const RISK_COLORS = {
   high: { fill: '#ef4444', stroke: '#dc2626' },
@@ -9,6 +10,19 @@ const RISK_COLORS = {
 }
 
 const STORM_COLOR = { fill: '#ef4444', stroke: '#ff0000' }
+
+// Auto-fit the map bounds to show all zone polygons
+function AutoFitBounds({ zones }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!zones || zones.length === 0) return
+    const allCoords = zones.flatMap(z => z.polygon)
+    if (allCoords.length === 0) return
+    const bounds = L.latLngBounds(allCoords.map(([lat, lng]) => [lat, lng]))
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 })
+  }, [zones, map])
+  return null
+}
 
 export default function ZoneRiskMap({ zones = [], stormActive = false }) {
   return (
@@ -22,8 +36,8 @@ export default function ZoneRiskMap({ zones = [], stormActive = false }) {
       `}</style>
       
       <MapContainer 
-        center={[28.58, 77.22]} 
-        zoom={10} 
+        center={[22, 78]} 
+        zoom={5} 
         zoomControl={false} 
         attributionControl={false}
         className="w-full h-full z-10"
@@ -32,11 +46,13 @@ export default function ZoneRiskMap({ zones = [], stormActive = false }) {
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           maxZoom={19}
         />
+        <AutoFitBounds zones={zones} />
         
         {zones.map(zone => {
           const isStormZone = zone.storm_active
           const colors = isStormZone ? STORM_COLOR : RISK_COLORS[zone.risk_level] || RISK_COLORS.medium
           const coords = zone.polygon.map(([lat, lng]) => [lat, lng])
+          const w = zone.weather || {}
           
           const labelIcon = L.divIcon({
             className: 'zone-label',
@@ -59,9 +75,13 @@ export default function ZoneRiskMap({ zones = [], stormActive = false }) {
                 <Tooltip sticky className="dark-tooltip">
                   <div style={{fontFamily: 'monospace', fontSize: '11px'}}>
                     <b>{zone.name}</b><br/>
-                    Risk: {zone.risk_multiplier}x<br/>
-                    Workers: {zone.workers}<br/>
-                    {isStormZone ? <span style={{color: '#ef4444'}}>⚡ STORM ACTIVE</span> : '✅ Clear'}
+                    Risk: {zone.risk_multiplier}x · Workers: {zone.workers}<br/>
+                    {w.temp_c != null && <>🌡 {w.temp_c}°C · 🌧 {w.rain_1h}mm · 💨 {w.aqi} AQI<br/></>}
+                    {w.description && <span style={{fontStyle: 'italic', color: '#94a3b8'}}>{w.description}</span>}
+                    {!w.description && (isStormZone 
+                      ? <span style={{color: '#ef4444'}}>⚡ STORM ACTIVE</span> 
+                      : <span>✅ Clear</span>
+                    )}
                   </div>
                 </Tooltip>
               </Polygon>

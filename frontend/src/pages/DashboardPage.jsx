@@ -21,7 +21,7 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
   const [weather, setWeather] = useState(null)
 
   const fetchWeather = async () => {
-    try { const r = await axios.get(`${API_BASE_URL}/weather/current`); setWeather(r.data) } catch {}
+    try { const r = await axios.get(`${API_BASE_URL}/weather/current?worker_id=${workerId || ''}`); setWeather(r.data) } catch {}
   }
   const fetchClaims = async () => {
     try { const r = await axios.get(`${API_BASE_URL}/claims/${workerId}`); setClaims(r.data.claims) } catch {}
@@ -42,11 +42,41 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
     } finally { setLoading(false) }
   }
 
+  const simulateCurfew = async (wid) => {
+    setLoading(true)
+    try {
+      await axios.post(`${API_BASE_URL}/demo/set-curfew?active=true`)
+      const r = await axios.get(`${API_BASE_URL}/check-payout/${wid}`)
+      setData(r.data)
+      await fetchClaims()
+      await fetchWeather()
+    } catch (err) {
+      setData({ status: 'ERROR', message: 'Failed to set curfew.' })
+    } finally { setLoading(false) }
+  }
+
+  const simulateStrike = async (wid) => {
+    setLoading(true)
+    try {
+      await axios.post(`${API_BASE_URL}/demo/set-strike?active=true`)
+      const r = await axios.get(`${API_BASE_URL}/check-payout/${wid}`)
+      setData(r.data)
+      await fetchClaims()
+      await fetchWeather()
+    } catch (err) {
+      setData({ status: 'ERROR', message: 'Failed to set strike.' })
+    } finally { setLoading(false) }
+  }
+
   const resetEnv = async () => {
     setLoading(true)
     try {
-      await axios.post(`${API_BASE_URL}/demo/set-storm?active=false`)
-      setData({ status: 'ACTIVE', message: 'Weather cleared. All systems normal.' })
+      await Promise.all([
+        axios.post(`${API_BASE_URL}/demo/set-storm?active=false`),
+        axios.post(`${API_BASE_URL}/demo/set-curfew?active=false`),
+        axios.post(`${API_BASE_URL}/demo/set-strike?active=false`)
+      ])
+      setData({ status: 'ACTIVE', message: 'All disruptions cleared. All systems normal.' })
       setClaims([])
       await fetchWeather()
     } catch {} finally { setLoading(false) }
@@ -88,6 +118,20 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
           </div>
         </header>
 
+        {/* Disruption Banners */}
+        {weather?.curfew_active && (
+          <div className="mx-4 mt-4 p-3 bg-rose-600 rounded-xl flex items-center gap-2 shadow-lg animate-pulse">
+            <AlertTriangle className="w-5 h-5 text-white" />
+            <span className="text-sm font-bold text-white uppercase tracking-tight">Active Curfew Alert</span>
+          </div>
+        )}
+        {weather?.strike_active && (
+          <div className="mx-4 mt-4 p-3 bg-orange-600 rounded-xl flex items-center gap-2 shadow-lg animate-pulse">
+            <AlertTriangle className="w-5 h-5 text-white" />
+            <span className="text-sm font-bold text-white uppercase tracking-tight">Active Market Strike</span>
+          </div>
+        )}
+
         {/* Scrollable Content */}
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
           <WeatherWidget weather={weather} />
@@ -112,9 +156,9 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
                 </p>
                 {data?.tcs_breakdown && (
                   <div className="pt-3 mt-3 border-t border-white/10 flex justify-between text-xs font-mono text-neutral-400">
-                    <span>LOC: <span className="text-white">{data.tcs_breakdown.location_match.score}</span></span>
-                    <span>BEH: <span className="text-white">{data.tcs_breakdown.behavioral_check.score}</span></span>
-                    <span>FRQ: <span className="text-white">{data.tcs_breakdown.frequency_cap.score}</span></span>
+                    <span>ANMLY: <span className="text-white">{data.tcs_breakdown.ml_raw_anomaly_score}</span></span>
+                    <span>DIST: <span className="text-white">{data.tcs_breakdown.features.distance_m}m</span></span>
+                    <span>SPD: <span className="text-white">{data.tcs_breakdown.features.speed_encoded}</span></span>
                   </div>
                 )}
               </div>
@@ -131,6 +175,18 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudRain className="w-5 h-5" />}
             <span>Simulate Storm ({workerId || 'W123'})</span>
           </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => simulateCurfew(workerId || 'W123')} disabled={loading}
+              className="flex items-center justify-center gap-2 bg-rose-900 border border-rose-700 text-white font-medium py-3 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50">
+              <AlertTriangle className="w-4 h-4 text-rose-300" />
+              <span className="text-xs font-bold uppercase tracking-tight">Curfew</span>
+            </button>
+            <button onClick={() => simulateStrike(workerId || 'W123')} disabled={loading}
+               className="flex items-center justify-center gap-2 bg-orange-950 border border-orange-700 text-white font-medium py-3 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50">
+              <AlertTriangle className="w-4 h-4 text-orange-400" />
+              <span className="text-xs font-bold uppercase tracking-tight">Strike</span>
+            </button>
+          </div>
           <button onClick={() => simulateStorm('W456')} disabled={loading}
             className="w-full flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-white font-medium py-3 px-6 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50">
             <AlertTriangle className="w-4 h-4 text-rose-400" />
