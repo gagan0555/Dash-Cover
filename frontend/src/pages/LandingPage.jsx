@@ -22,7 +22,7 @@ export default function LandingPage({ onEnrolled }) {
         <header className="p-6 pt-12 flex justify-center items-center">
           <div className="flex items-center gap-2.5">
             <ShieldCheck className="w-8 h-8 text-emerald-400" />
-            <h1 className="text-3xl font-bold tracking-tight text-white">GigShield</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white">Dash-Cover</h1>
           </div>
         </header>
 
