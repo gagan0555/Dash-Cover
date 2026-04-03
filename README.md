@@ -316,11 +316,19 @@ We chose a **Web App** over a native mobile app for the following reasons:
 - [x] Set up GitHub repo, FastAPI boilerplate, PostgreSQL schema
 - [x] Build basic worker onboarding flow (frontend)
 
-### Phase 2 (Weeks 3–4) — Automation & Protection
-......(will update in nnext phase )
+### Phase 2 (Weeks 3–4) — Automation & Disruption Implementation ✅
+- [x] Integrate Three-Tier Claim Resolution engine (Auto-Approve, Soft Review, Hold & Investigate based on TCS)
+- [x] Build Live Parametric Trigger APIs (Weather/Storm & AQI Mock Services)
+- [x] Develop Modular Frontend Component Architecture (Status Ring, Live Telemetry Widget, Claims History)
+- [x] Construct interactive Admin Dashboard (Real-time Loss Ratios, Worker Risk Metrics)
+- [x] Implement Live Zone Risk Map with dynamic Geo-spatial Polygons displaying active disruption areas
 
-### Phase 3 (Weeks 5–6) — Scale & Optimise
-......(will update in next phase)
+### Phase 3 (Weeks 5–6) — Scale & Optimisation ⏳
+- [ ] Transition from mock in-memory stores to persistent Supabase schema
+- [ ] Connect production Weather (OpenWeatherMap) and CPCB AQI Live APIs
+- [ ] Train and integrate XGBoost pricing model and Isolation Forest anomaly detection engine
+- [ ] Implement Razorpay/UPI payout settlement gateway
+- [ ] Deploy WhatsApp/SMS integration for "Soft Review" Tier 2 prompts
 
 ---
 
