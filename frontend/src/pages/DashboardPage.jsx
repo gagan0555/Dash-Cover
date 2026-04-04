@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { motion } from 'framer-motion'
-import { ShieldCheck, CloudRain, AlertTriangle, Loader2, LayoutDashboard } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { ShieldCheck, CloudRain, AlertTriangle, Loader2} from 'lucide-react'
 import { API_BASE_URL } from '../config'
 import StatusRing from '../components/StatusRing'
 import WeatherWidget from '../components/WeatherWidget'
@@ -97,7 +96,7 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="w-6 h-6 text-emerald-400" />
-              <h1 className="text-xl font-bold tracking-tight text-white">Dash-Cover</h1>
+              <h1 className="text-xl font-bold tracking-tight text-white">GigShield</h1>
             </div>
             <div className="flex items-center gap-2 bg-neutral-800 rounded-full px-3 py-1.5 border border-white/15">
               <span className={`w-2 h-2 rounded-full ${status === 'ACTIVE' ? 'bg-emerald-400' : status === 'SUCCESS' ? 'bg-amber-400' : 'bg-rose-400'} animate-pulse`} />
@@ -197,10 +196,6 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
               className="text-neutral-500 hover:text-neutral-300 text-sm underline underline-offset-4 decoration-neutral-700 transition-all">
               Reset Environment
             </button>
-            <Link to="/admin" className="flex items-center gap-1.5 text-sm text-indigo-400 hover:text-indigo-300 transition-all">
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>Admin Panel</span>
-            </Link>
           </div>
         </div>
       </motion.div>
