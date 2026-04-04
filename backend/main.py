@@ -155,7 +155,13 @@ def toggle_strike(active: bool):
     if not active:
         reset_weekly_claims()
     return {"status": "SUCCESS", "strike_active": active}
-
+    
+@app.get("/worker/{worker_id}")
+def get_worker(worker_id: str):
+    r = supabase.table("workers").select("*").eq("worker_id", worker_id).execute()
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Worker not found")
+    return r.data[0]
 
 @app.get("/check-payout/{worker_id}")
 def check_payout(worker_id: str):
