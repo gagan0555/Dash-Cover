@@ -238,7 +238,7 @@ def check_payout(worker_id: str):
 
     bp = worker.get("behavior_profile", "genuine")
     if bp == "genuine":
-        drift_lat, drift_lon, activity = 0.005, 0.005, "Stationary"
+        drift_lat, drift_lon, activity = 0.0005, 0.0005, "Stationary"
     elif bp == "suspicious":
         drift_lat, drift_lon, activity = 0.08, 0.08, "High-Speed"
     else:
