@@ -60,20 +60,27 @@ def _background_poll():
             r = supabase.table("workers").select("worker_id, lat, lon").execute()
             for w in r.data:
                 try:
+                    # Skip if already claimed successfully today
+                    today = datetime.now().date().isoformat()
+                    existing = supabase.table("claims")\
+                        .select("id")\
+                        .eq("worker_id", w["worker_id"])\
+                        .eq("status", "SUCCESS")\
+                        .gte("timestamp", today)\
+                        .execute()
+                    if existing.data:
+                        continue  # already paid today, skip
+
                     weather = get_weather_data(w["lat"], w["lon"])
                     alert = get_alert_data()
                     trigger = evaluate_all_triggers(weather, alert)
                     if trigger.triggered:
-                        print(f"[AutoPoll] Trigger detected for {w['worker_id']}: {trigger.trigger_type}")
+                        print(f"[AutoPoll] Trigger for {w['worker_id']}: {trigger.trigger_type}")
                         check_payout(w["worker_id"])
                 except Exception as e:
                     print(f"[AutoPoll] {w['worker_id']}: {e}")
         except Exception as e:
             print(f"[AutoPoll] Poll error: {e}")
-
-_poll_thread = threading.Thread(target=_background_poll, daemon=True)
-_poll_thread.start()
-
 
 # ─── Models ──────────────────────────────────────────────────────────────────
 
