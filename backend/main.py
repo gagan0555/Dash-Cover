@@ -319,6 +319,20 @@ def get_claims(worker_id: str):
     r = supabase.table("claims").select("*").eq("worker_id", worker_id).order("timestamp", desc=True).execute()
     return {"worker_id": worker_id, "claims": r.data, "total_claims": len(r.data)}
 
+@app.post("/demo/full-reset")
+def full_reset(worker_id: str = None):
+    set_storm_mode(False)
+    set_curfew_mode(False)
+    set_strike_mode(False)
+    reset_weekly_claims()
+    
+    # Delete claims from Supabase too
+    if worker_id:
+        supabase.table("claims").delete().eq("worker_id", worker_id).execute()
+    else:
+        supabase.table("claims").delete().neq("id", "").execute()  # delete all
+    
+    return {"status": "FULL_RESET_OK"}
 
 # ─── Weather ─────────────────────────────────────────────────────────────────
 
