@@ -325,13 +325,10 @@ def full_reset(worker_id: str = None):
     set_curfew_mode(False)
     set_strike_mode(False)
     reset_weekly_claims()
-    
-    # Delete claims from Supabase too
     if worker_id:
         supabase.table("claims").delete().eq("worker_id", worker_id).execute()
     else:
-        supabase.table("claims").delete().neq("id", "").execute()  # delete all
-    
+        supabase.table("claims").delete().neq("id", "").execute()
     return {"status": "FULL_RESET_OK"}
 
 # ─── Weather ─────────────────────────────────────────────────────────────────
