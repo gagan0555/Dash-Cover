@@ -1,1 +1,1 @@
-export const API_BASE_URL = 'https://dash-cover.onrender.com'
+export const API_BASE_URL = 'https://dash-cover-backend.onrender.com'
