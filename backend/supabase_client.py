@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-url: str = os.getenv("SUPABASE_URL", "https://mock.supabase.co")
-key: str = os.getenv("SUPABASE_KEY", "mock-key")
+url: str = os.getenv("SUPABASE_URL")
+key: str = os.getenv("SUPABASE_KEY")
 
 # Initialize the Supabase client
 supabase: Client = create_client(url, key)
