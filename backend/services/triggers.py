@@ -53,7 +53,7 @@ def evaluate_rain_trigger(weather_data: dict) -> TriggerResult:
 
 def evaluate_heat_trigger(weather_data: dict) -> TriggerResult:
     """Check if temperature exceeds the extreme heat threshold."""
-    temp = weather_data.get("temp_celsius", 0.0)
+    temp = weather_data.get("temp_c", 0.0)
     if temp > HEAT_THRESHOLD_CELSIUS:
         severity = "critical" if temp > 48.0 else "severe"
         return TriggerResult(

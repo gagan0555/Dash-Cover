@@ -34,6 +34,16 @@ export default function AdminPage() {
     await fetchAll()
   }
 
+  const toggleCurfew = async (active) => {
+    await axios.post(`${API_BASE_URL}/demo/set-curfew?active=${active}`)
+    await fetchAll()
+  }
+
+  const toggleStrike = async (active) => {
+    await axios.post(`${API_BASE_URL}/demo/set-strike?active=${active}`)
+    await fetchAll()
+  }
+
   const statCards = stats ? [
     { label: 'Total Workers', value: stats.total_workers, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
     { label: 'Total Claims', value: stats.total_claims, icon: FileText, color: 'text-purple-400', bg: 'bg-purple-500/10' },
@@ -63,6 +73,12 @@ export default function AdminPage() {
           {stats?.storm_active && (
             <span className="text-[10px] px-2 py-1 rounded-full bg-rose-500/20 text-rose-300 font-bold uppercase animate-pulse">⚡ Storm Active</span>
           )}
+          {stats?.curfew_active && (
+            <span className="text-[10px] px-2 py-1 rounded-full bg-rose-600/20 text-rose-300 font-bold uppercase animate-pulse">🚫 Curfew Active</span>
+          )}
+          {stats?.strike_active && (
+            <span className="text-[10px] px-2 py-1 rounded-full bg-orange-600/20 text-orange-200 font-bold uppercase animate-pulse">📢 Strike Active</span>
+          )}
           <button onClick={fetchAll} className="p-2 hover:bg-white/10 rounded-lg transition-all">
             <RefreshCw className={`w-4 h-4 text-neutral-400 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -70,16 +86,53 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Storm Controls */}
-        <div className="flex gap-3">
-          <button onClick={() => toggleStorm(true)}
-            className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold rounded-lg transition-all">
-            ⚡ Activate Storm
-          </button>
-          <button onClick={() => toggleStorm(false)}
-            className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 text-white text-sm font-medium rounded-lg transition-all">
-            Clear Storm
-          </button>
+        {/* Alert Controls */}
+        <div className="flex flex-wrap gap-4 bg-neutral-900/50 p-4 rounded-2xl border border-white/10">
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest px-1">Weather / Storm</p>
+            <div className="flex gap-2">
+              <button onClick={() => toggleStorm(true)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${stats?.storm_active ? 'bg-rose-600 text-white shadow-[0_0_15px_rgba(225,29,72,0.4)]' : 'bg-neutral-800 text-neutral-400 border border-neutral-700'}`}>
+                Activate Storm
+              </button>
+              <button onClick={() => toggleStorm(false)}
+                className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 text-white text-xs font-medium rounded-lg transition-all">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div className="w-px h-12 bg-white/5 self-end mb-1" />
+
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest px-1">Curfew Alert</p>
+            <div className="flex gap-2">
+              <button onClick={() => toggleCurfew(true)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${stats?.curfew_active ? 'bg-rose-600 text-white shadow-[0_0_15px_rgba(225,29,72,0.4)]' : 'bg-neutral-800 text-neutral-400 border border-neutral-700'}`}>
+                Trigger Curfew
+              </button>
+              <button onClick={() => toggleCurfew(false)}
+                className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 text-white text-xs font-medium rounded-lg transition-all">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div className="w-px h-12 bg-white/5 self-end mb-1" />
+
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest px-1">Market Strike</p>
+            <div className="flex gap-2">
+              <button onClick={() => toggleStrike(true)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${stats?.strike_active ? 'bg-orange-600 text-white shadow-[0_0_15px_rgba(234,88,12,0.4)]' : 'bg-neutral-800 text-neutral-400 border border-neutral-700'}`}>
+                Trigger Strike
+              </button>
+              <button onClick={() => toggleStrike(false)}
+                className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 text-white text-xs font-medium rounded-lg transition-all">
+                Clear
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Stat Cards */}
@@ -137,7 +190,7 @@ export default function AdminPage() {
           {/* Zone Risk Map */}
           <div className="bg-neutral-900 border border-white/10 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-white/5">
-              <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">Zone Risk Map — Delhi NCR</span>
+              <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">Zone Risk Map — Pan India</span>
             </div>
             <div className="h-[320px]">
               <ZoneRiskMap zones={zones.zones} stormActive={zones.storm_active} />

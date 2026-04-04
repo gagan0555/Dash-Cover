@@ -1,24 +1,103 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShieldCheck, User, Phone, Bike, Wallet } from 'lucide-react'
+import { ShieldCheck, User, Phone, Bike, Wallet, MapPin, Search, Loader2 } from 'lucide-react'
 import axios from 'axios'
 import { API_BASE_URL } from '../config'
 
 export default function EnrollmentModal({ isOpen, onClose, onEnrolled }) {
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
-  const [formData, setFormData] = useState({ name: '', phone: '', vehicle: '', upi: '', coverage_tier: 'Standard' })
+  const [formData, setFormData] = useState({
+    name: '', phone: '', vehicle: '', upi: '',
+    coverage_tier: 'Standard',
+  })
+  
+  // Geolocation Search State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const [selectedLocation, setSelectedLocation] = useState(null)
+  
+  const searchTimeoutRef = useRef(null)
+  const isSelectedSearch = useRef(false) // Add a flag to skip searching when we programmatically set the query
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value })
 
+  // Debounced Search
+  useEffect(() => {
+    if (searchQuery.length < 3) {
+      setSearchResults([])
+      setShowResults(false)
+      return
+    }
+
+    // Skip the search if the user just clicked an item from the dropdown
+    if (isSelectedSearch.current) {
+      isSelectedSearch.current = false
+      return
+    }
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const r = await axios.get(`${API_BASE_URL}/geocode?q=${encodeURIComponent(searchQuery)}`)
+        // Filter out duplicates based on lat/lon
+        const unique = r.data.results.filter((v, i, a) => a.findIndex(t => (t.lat === v.lat && t.lon === v.lon)) === i)
+        setSearchResults(unique)
+        setShowResults(true)
+      } catch (err) {
+        console.error("Geocoding failed", err)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(searchTimeoutRef.current)
+  }, [searchQuery])
+
+  const handleSelectLocation = (loc) => {
+    setSelectedLocation({
+      ...loc,
+      zone_id: `${loc.name.replace(/\s+/g, '')}-DynamicZone`
+    })
+    
+    // Set the flag BEFORE setting search query so the useEffect skips the search
+    isSelectedSearch.current = true
+    setSearchQuery(`${loc.name}${loc.state ? `, ${loc.state}` : ''}`)
+    
+    setShowResults(false)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (step === 1) { setStep(2); return }
+    if (step === 1) {
+      if (!selectedLocation) {
+        setError('Please search and select a valid operating area.')
+        return
+      }
+      setError('')
+      setStep(2)
+      return
+    }
+    
     setError('')
     try {
-      const r = await axios.post(`${API_BASE_URL}/enroll`, formData)
+      const payload = {
+        name: formData.name,
+        phone: formData.phone,
+        vehicle: formData.vehicle,
+        upi: formData.upi,
+        coverage_tier: formData.coverage_tier,
+        zone_id: selectedLocation.zone_id,
+        lat: selectedLocation.lat,
+        lon: selectedLocation.lon,
+      }
+      const r = await axios.post(`${API_BASE_URL}/enroll`, payload)
       onClose()
-      setTimeout(() => onEnrolled(r.data.worker_id, r.data, formData), 400)
+      setTimeout(() => onEnrolled(r.data.worker_id, r.data, { ...formData, operating_area: selectedLocation.name }), 400)
     } catch (err) {
       setError(err.response?.data?.detail || 'Enrollment failed. Is the backend running?')
     }
@@ -38,6 +117,7 @@ export default function EnrollmentModal({ isOpen, onClose, onEnrolled }) {
               <h3 className="text-xl font-bold text-white">{step === 1 ? 'Worker Details' : 'Coverage Setup'}</h3>
               <span className="text-xs font-medium bg-neutral-800 px-2 py-1 rounded text-neutral-400">Step {step} of 2</span>
             </div>
+            
             <form onSubmit={handleSubmit} className="space-y-4">
               {step === 1 ? (
                 <motion.div key="s1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
@@ -48,6 +128,7 @@ export default function EnrollmentModal({ isOpen, onClose, onEnrolled }) {
                       <input required type="text" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Ravi Kumar" className={inputCls} />
                     </div>
                   </div>
+                  
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-neutral-400 px-1">Mobile Number</label>
                     <div className="relative">
@@ -55,7 +136,61 @@ export default function EnrollmentModal({ isOpen, onClose, onEnrolled }) {
                       <input required type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+91 98765 43210" className={inputCls} />
                     </div>
                   </div>
-                  <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold py-3.5 rounded-xl shadow-lg mt-2 transition-all">Next Step</button>
+                  
+                  <div className="space-y-1.5 relative">
+                    <label className="text-xs font-semibold text-neutral-400 px-1">Operating Area</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
+                      <input 
+                        required 
+                        type="text" 
+                        value={searchQuery} 
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value)
+                          if (selectedLocation && e.target.value !== selectedLocation.name) {
+                            setSelectedLocation(null) // invalidate selection if they type again
+                          }
+                        }}
+                        onFocus={() => { if(searchResults.length > 0) setShowResults(true) }}
+                        placeholder="Search city, town, or pin code..." 
+                        className={inputCls} 
+                      />
+                      {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500 animate-spin" />}
+                    </div>
+                    
+                    {/* Autocomplete Dropdown */}
+                    <AnimatePresence>
+                      {showResults && searchResults.length > 0 && (
+                        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                          className="absolute z-20 w-full mt-1 bg-neutral-800 border border-neutral-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                          {searchResults.map((loc, idx) => (
+                            <button key={idx} type="button" onClick={() => handleSelectLocation(loc)}
+                              className="w-full text-left px-4 py-2.5 hover:bg-neutral-700 transition-colors border-b border-neutral-700/50 last:border-0">
+                              <div className="text-sm font-medium text-white flex items-center gap-2">
+                                <MapPin className="w-3 h-3 text-emerald-400" />
+                                {loc.name}
+                              </div>
+                              <div className="text-[10px] text-neutral-400 pl-5">
+                                {loc.state ? `${loc.state}, ` : ''}{loc.country} · Lat: {loc.lat.toFixed(2)}, Lon: {loc.lon.toFixed(2)}
+                              </div>
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    
+                    {selectedLocation && (
+                      <p className="text-[10px] text-emerald-500/80 px-1 flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3" /> Area secured: {selectedLocation.lat.toFixed(4)}, {selectedLocation.lon.toFixed(4)}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {error && <p className="text-rose-400 text-sm text-center bg-rose-500/10 border border-rose-500/20 rounded-lg p-2">{error}</p>}
+                  
+                  <button type="submit" className={`w-full font-bold py-3.5 rounded-xl shadow-lg mt-2 transition-all ${selectedLocation ? 'bg-emerald-500 hover:bg-emerald-400 text-neutral-950' : 'bg-neutral-800 text-neutral-500 cursor-not-allowed'}`}>
+                    Next Step
+                  </button>
                 </motion.div>
               ) : (
                 <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">

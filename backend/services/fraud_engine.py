@@ -1,31 +1,42 @@
 """
-Dash-Cover Fraud Engine — Trust Composite Score (TCS)
-=====================================================
-Multi-signal behavioral fingerprint scoring system.
+Dash-Cover Fraud Engine — Trust Composite Score (TCS) (ML Edition)
+==================================================================
+Multi-signal behavioral anomaly scoring system powered by Isolation Forest.
 
-Scoring Breakdown (Total: 1.0):
-  - Location Match:   0.50  (worker within 5km of affected weather station)
-  - Behavioral Check: 0.30  (activity coherence with weather conditions)
-  - Frequency Cap:    0.20  (claim frequency within acceptable bounds)
+Scoring Components:
+  - GPS Drift Distance (m) — derived from Haversine vs Alert Zone
+  - Claims Frequency — number of recent claims this week
+  - Speed/Activity Profile (0=Stationary, 1=Low-Speed, 2=Moving, 3=High-Speed)
 
-Resolution Tiers (from README Section 8.3):
-  - TCS >= 0.75  ->  AUTO-APPROVED
-  - TCS 0.40-0.74 -> SOFT REVIEW (FLAG FOR REVIEW)
-  - TCS < 0.40   ->  HOLD & INVESTIGATE (REJECT)
+Resolution Tiers (from README Section 8.3 & ML Architecture 7.3):
+  - TCS >= 0.75      ->  AUTO-APPROVED
+  - TCS 0.40 - 0.74   ->  SOFT REVIEW (FLAG FOR REVIEW)
+  - TCS < 0.40       ->  HOLD & INVESTIGATE (REJECT)
 """
 
+import os
 import math
+import pickle
+import numpy as np
 from typing import Tuple
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
-LOCATION_WEIGHT = 0.50
-BEHAVIOR_WEIGHT = 0.30
-FREQUENCY_WEIGHT = 0.20
-
-MAX_PROXIMITY_KM = 5.0          # must be within 5km of the alert zone
-MAX_WEEKLY_CLAIMS = 2            # more than 2 claims/week is suspicious
 EARTH_RADIUS_KM = 6371.0
+
+# Pre-load Models globally to optimize API response times
+MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+MODEL_PATH = os.path.join(MODEL_DIR, "isolation_forest.pkl")
+SCALER_PATH = os.path.join(MODEL_DIR, "scaler.pkl")
+
+clf = None
+scaler = None
+
+if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH):
+    with open(MODEL_PATH, "rb") as f:
+        clf = pickle.load(f)
+    with open(SCALER_PATH, "rb") as f:
+        scaler = pickle.load(f)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -47,99 +58,42 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return EARTH_RADIUS_KM * c
 
 
-# ─── Scoring Components ─────────────────────────────────────────────────────
-
-def score_location_match(
-    worker_lat: float,
-    worker_lon: float,
-    alert_lat: float,
-    alert_lon: float,
-) -> float:
+def encode_activity(activity_status: str) -> int:
     """
-    Location Match Score (0.0 - 1.0).
-
-    Full score (1.0) if worker is within MAX_PROXIMITY_KM of the weather station
-    reporting the Red Alert. Score decays linearly to 0.0 at 3x the threshold.
-    """
-    distance_km = haversine_distance(worker_lat, worker_lon, alert_lat, alert_lon)
-
-    if distance_km <= MAX_PROXIMITY_KM:
-        return 1.0
-    elif distance_km <= MAX_PROXIMITY_KM * 3:
-        # Linear decay from 1.0 to 0.0 between 5km and 15km
-        return max(0.0, 1.0 - (distance_km - MAX_PROXIMITY_KM) / (MAX_PROXIMITY_KM * 2))
-    else:
-        return 0.0
-
-
-def score_behavioral_check(activity_status: str) -> float:
-    """
-    Behavioral Coherence Score (0.0 - 1.0).
-
-    During extreme weather, a genuine worker should be stationary (sheltering).
-    Movement patterns that contradict the weather event are flagged.
-
-    Activity statuses and their scores:
-      - 'Stationary'  -> 1.0  (sheltering, consistent with disruption)
-      - 'Low-Speed'   -> 0.7  (walking/parking bike, plausible)
-      - 'Moving'      -> 0.4  (ambiguous — could be seeking shelter)
-      - 'High-Speed'  -> 0.1  (in a car/bus, not a bike rider — suspicious)
+    Transforms string status into numeric for ML.
+      - 'Stationary'  -> 0
+      - 'Low-Speed'   -> 1
+      - 'Moving'      -> 2
+      - 'High-Speed'  -> 3
     """
     status = activity_status.lower().strip()
-
     score_map = {
-        "stationary": 1.0,
-        "low-speed": 0.7,
-        "moving": 0.4,
-        "high-speed": 0.1,
+        "stationary": 0,
+        "low-speed": 1,
+        "moving": 2,
+        "high-speed": 3,
     }
-
-    return score_map.get(status, 0.5)  # unknown defaults to neutral
-
-
-def score_frequency_cap(claims_this_week: int) -> float:
-    """
-    Frequency Cap Score (0.0 - 1.0).
-
-    Workers who have claimed more than MAX_WEEKLY_CLAIMS this week
-    receive a reduced score. Score decays with each additional claim.
-
-    0 claims -> 1.0
-    1 claim  -> 1.0
-    2 claims -> 1.0  (at the cap)
-    3 claims -> 0.5  (one over — yellow flag)
-    4+ claims -> 0.0 (pattern abuse — red flag)
-    """
-    if claims_this_week <= MAX_WEEKLY_CLAIMS:
-        return 1.0
-    elif claims_this_week == MAX_WEEKLY_CLAIMS + 1:
-        return 0.5
-    else:
-        return 0.0
+    return score_map.get(status, 2)  # Default moving
 
 
 # ─── Mock Claims Tracker ────────────────────────────────────────────────────
 
-# In production, this queries Supabase for the worker's claim history this week.
 _mock_claims_tracker: dict[str, int] = {}
 
-
 def get_claims_this_week(worker_id: str) -> int:
-    """Retrieve the number of claims filed by a worker this week (mock)."""
+    """Retrieve the number of claims filed by a worker this week."""
+    # In full production this queries Supabase:
+    # select count(*) from claims where worker_id=X and timestamp > week_start
     return _mock_claims_tracker.get(worker_id, 0)
 
-
 def record_claim(worker_id: str) -> None:
-    """Record a new claim for the worker (mock)."""
     _mock_claims_tracker[worker_id] = _mock_claims_tracker.get(worker_id, 0) + 1
 
-
 def reset_weekly_claims() -> None:
-    """Clear all weekly claim counts (call at the start of each new week)."""
     _mock_claims_tracker.clear()
 
 
-# ─── Main TCS Calculator ────────────────────────────────────────────────────
+# ─── ML TCS Calculator ──────────────────────────────────────────────────────
 
 def calculate_trust_score(
     worker_id: str,
@@ -150,37 +104,32 @@ def calculate_trust_score(
     alert_lon: float,
 ) -> dict:
     """
-    Calculate the Trust Composite Score (TCS) for a claim event.
-
-    Args:
-        worker_id:       Unique identifier for the delivery worker.
-        current_lat:     Worker's current GPS latitude.
-        current_lon:     Worker's current GPS longitude.
-        activity_status: One of 'Stationary', 'Low-Speed', 'Moving', 'High-Speed'.
-        alert_lat:       Latitude of the weather station reporting the Red Alert.
-        alert_lon:       Longitude of the weather station reporting the Red Alert.
-
-    Returns:
-        dict with:
-          - trust_score (float):       Weighted composite score 0.0 - 1.0
-          - recommendation (str):      'Approve', 'Flag for Review', or 'Reject'
-          - breakdown (dict):          Individual component scores and weights
-          - distance_km (float):       Actual distance from alert zone
-          - claims_this_week (int):    Current weekly claim count
+    Calculate the Trust Composite Score (TCS) using the pretrained Isolation Forest.
     """
-    # Score each component
-    loc_score = score_location_match(current_lat, current_lon, alert_lat, alert_lon)
-    beh_score = score_behavioral_check(activity_status)
+    distance_km = round(haversine_distance(current_lat, current_lon, alert_lat, alert_lon), 2)
+    distance_m = distance_km * 1000.0
+    
     claims_this_week = get_claims_this_week(worker_id)
-    freq_score = score_frequency_cap(claims_this_week)
+    speed_encoded = encode_activity(activity_status)
 
-    # Weighted composite
-    trust_score = round(
-        (loc_score * LOCATION_WEIGHT)
-        + (beh_score * BEHAVIOR_WEIGHT)
-        + (freq_score * FREQUENCY_WEIGHT),
-        4,
-    )
+    # If models are missing (e.g. not trained yet), fallback to extremely basic logic
+    if clf is None or scaler is None:
+        trust_score = 0.5
+        recommendation = "Flag for Review"
+        raw_anomaly = 0.0
+    else:
+        # Build feature vector
+        X = np.array([[distance_m, claims_this_week, speed_encoded]])
+        X_scaled = scaler.transform(X)
+
+        # Output range is usually roughly -0.5 (strong anomaly) to 0.5 (very normal) for IsolationForest
+        # We need to map it neatly into a 0.0 - 1.0 Trust Composite Score
+        raw_anomaly = clf.decision_function(X_scaled)[0]
+        
+        # Sigmoid-like scale mapping to push scores to bounds 0-1
+        # Shifting and scaling heuristic to fit standard ML outcomes nicely:
+        tcs_val = 1.0 / (1.0 + np.exp(-10 * raw_anomaly))
+        trust_score = round(float(tcs_val), 4)
 
     # Resolution tier (README Section 8.3)
     if trust_score >= 0.75:
@@ -190,17 +139,16 @@ def calculate_trust_score(
     else:
         recommendation = "Reject"
 
-    distance_km = round(
-        haversine_distance(current_lat, current_lon, alert_lat, alert_lon), 2
-    )
-
     return {
         "trust_score": trust_score,
         "recommendation": recommendation,
         "breakdown": {
-            "location_match": {"score": round(loc_score, 4), "weight": LOCATION_WEIGHT},
-            "behavioral_check": {"score": round(beh_score, 4), "weight": BEHAVIOR_WEIGHT},
-            "frequency_cap": {"score": round(freq_score, 4), "weight": FREQUENCY_WEIGHT},
+            "ml_raw_anomaly_score": round(float(raw_anomaly), 4),
+            "features": {
+                "distance_m": distance_m,
+                "claims": claims_this_week,
+                "speed_encoded": speed_encoded
+            }
         },
         "distance_km": distance_km,
         "claims_this_week": claims_this_week,
