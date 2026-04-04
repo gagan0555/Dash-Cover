@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { motion } from 'framer-motion'
-import { ShieldCheck, CloudRain, AlertTriangle, Loader2} from 'lucide-react'
+import { ShieldCheck, CloudRain, AlertTriangle, Loader2 } from 'lucide-react'
 import { API_BASE_URL } from '../config'
 import StatusRing from '../components/StatusRing'
 import WeatherWidget from '../components/WeatherWidget'
@@ -22,10 +22,15 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
   const fetchWeather = async () => {
     try { const r = await axios.get(`${API_BASE_URL}/weather/current?worker_id=${workerId || ''}`); setWeather(r.data) } catch {}
   }
-  const fetchClaims = async () => {
-    try { const r = await axios.get(`${API_BASE_URL}/claims/${workerId}`); setClaims(r.data.claims) } catch {}
-  }
-
+const fetchClaims = async () => {
+  try {
+    const r = await axios.get(`${API_BASE_URL}/claims/${workerId}`)
+    setClaims(r.data.claims)
+    if (r.data.claims?.length > 0 && r.data.claims[0].tcs_score != null) {
+      setData(prev => ({ ...prev, tcs_score: r.data.claims[0].tcs_score }))
+    }
+  } catch {}
+}
   useEffect(() => { fetchWeather(); fetchClaims() }, [])
 
   const simulateStorm = async (wid) => {
@@ -33,12 +38,9 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
     try {
       await axios.post(`${API_BASE_URL}/demo/set-storm?active=true`)
       const r = await axios.get(`${API_BASE_URL}/check-payout/${wid}`)
-      setData(r.data)
-      await fetchClaims()
-      await fetchWeather()
-    } catch (err) {
-      setData({ status: 'ERROR', message: 'Failed to connect to Oracle.' })
-    } finally { setLoading(false) }
+      setData(r.data); await fetchClaims(); await fetchWeather()
+    } catch { setData({ status: 'ERROR', message: 'Failed to connect to Oracle.' }) }
+    finally { setLoading(false) }
   }
 
   const simulateCurfew = async (wid) => {
@@ -46,12 +48,9 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
     try {
       await axios.post(`${API_BASE_URL}/demo/set-curfew?active=true`)
       const r = await axios.get(`${API_BASE_URL}/check-payout/${wid}`)
-      setData(r.data)
-      await fetchClaims()
-      await fetchWeather()
-    } catch (err) {
-      setData({ status: 'ERROR', message: 'Failed to set curfew.' })
-    } finally { setLoading(false) }
+      setData(r.data); await fetchClaims(); await fetchWeather()
+    } catch { setData({ status: 'ERROR', message: 'Failed to set curfew.' }) }
+    finally { setLoading(false) }
   }
 
   const simulateStrike = async (wid) => {
@@ -59,28 +58,32 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
     try {
       await axios.post(`${API_BASE_URL}/demo/set-strike?active=true`)
       const r = await axios.get(`${API_BASE_URL}/check-payout/${wid}`)
-      setData(r.data)
-      await fetchClaims()
-      await fetchWeather()
-    } catch (err) {
-      setData({ status: 'ERROR', message: 'Failed to set strike.' })
-    } finally { setLoading(false) }
+      setData(r.data); await fetchClaims(); await fetchWeather()
+    } catch { setData({ status: 'ERROR', message: 'Failed to set strike.' }) }
+    finally { setLoading(false) }
   }
 
-  const resetEnv = async () => {
-    setLoading(true)
-    try {
-      await Promise.all([
-        axios.post(`${API_BASE_URL}/demo/set-storm?active=false`),
-        axios.post(`${API_BASE_URL}/demo/set-curfew?active=false`),
-        axios.post(`${API_BASE_URL}/demo/set-strike?active=false`)
-      ])
-      setData({ status: 'ACTIVE', message: 'All disruptions cleared. All systems normal.' })
-      setClaims([])
-      await fetchWeather()
-    } catch {} finally { setLoading(false) }
-  }
+  const simulateFraud = async () => {
+  setLoading(true)
+  try {
+    await axios.post(`${API_BASE_URL}/demo/seed-fraud-worker`)
+    await axios.post(`${API_BASE_URL}/demo/set-storm?active=true`)
+    await axios.get(`${API_BASE_URL}/check-payout/W456`) // run but don't setData
+    await fetchClaims()
+    await fetchWeather()
+  } catch { setData({ status: 'ERROR', message: 'Failed to simulate fraud.' }) }
+  finally { setLoading(false) }
+}
 
+ const resetEnv = async () => {
+  setLoading(true)
+  try {
+    await axios.post(`${API_BASE_URL}/demo/full-reset?worker_id=${workerId}`)
+    setData({ status: 'ACTIVE', message: 'All disruptions cleared.' })
+    setClaims([])
+    await fetchWeather()
+  } catch {} finally { setLoading(false) }
+}
   const status = data?.status || 'ACTIVE'
 
   return (
@@ -91,7 +94,6 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
       <motion.div variants={pageVariants} initial="initial" animate="animate"
         className="flex-1 flex flex-col relative z-10 w-full max-w-md mx-auto">
 
-        {/* Header */}
         <header className="p-4 flex flex-col gap-3 w-full bg-neutral-900 border-b border-white/10 shadow-lg">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2.5">
@@ -117,7 +119,6 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
           </div>
         </header>
 
-        {/* Disruption Banners */}
         {weather?.curfew_active && (
           <div className="mx-4 mt-4 p-3 bg-rose-600 rounded-xl flex items-center gap-2 shadow-lg animate-pulse">
             <AlertTriangle className="w-5 h-5 text-white" />
@@ -131,13 +132,11 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
           </div>
         )}
 
-        {/* Scrollable Content */}
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
           <WeatherWidget weather={weather} />
           <StatusRing status={status} loading={loading} data={data} />
           <PolicyCard enrollmentData={enrollmentData} formData={formData} />
 
-          {/* Telemetry */}
           {(data?.reason || data?.message || status !== 'ACTIVE') && (
             <div className="w-full bg-neutral-900 overflow-hidden border border-white/10 rounded-2xl shadow-xl">
               <div className="bg-neutral-800/50 px-4 py-2 border-b border-white/5 flex justify-between items-center">
@@ -167,7 +166,6 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
           <ClaimHistory claims={claims} />
         </main>
 
-        {/* Controls */}
         <div className="p-4 w-full bg-neutral-950 border-t border-white/5 space-y-2.5">
           <button onClick={() => simulateStorm(workerId || 'W123')} disabled={loading}
             className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50">
@@ -181,17 +179,18 @@ export default function DashboardPage({ workerId, enrollmentData, formData }) {
               <span className="text-xs font-bold uppercase tracking-tight">Curfew</span>
             </button>
             <button onClick={() => simulateStrike(workerId || 'W123')} disabled={loading}
-               className="flex items-center justify-center gap-2 bg-orange-950 border border-orange-700 text-white font-medium py-3 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50">
+              className="flex items-center justify-center gap-2 bg-orange-950 border border-orange-700 text-white font-medium py-3 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50">
               <AlertTriangle className="w-4 h-4 text-orange-400" />
               <span className="text-xs font-bold uppercase tracking-tight">Strike</span>
             </button>
           </div>
-          <button onClick={() => simulateStorm('W456')} disabled={loading}
+          {/* P3: Now seeds W456 first before simulating, so it always works */}
+          <button onClick={simulateFraud} disabled={loading}
             className="w-full flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-white font-medium py-3 px-6 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50">
             <AlertTriangle className="w-4 h-4 text-rose-400" />
             <span>Simulate Fraud (W456)</span>
           </button>
-          <div className="flex justify-between items-center pt-1">
+          <div className="flex justify-center items-center pt-1">
             <button onClick={resetEnv} disabled={loading}
               className="text-neutral-500 hover:text-neutral-300 text-sm underline underline-offset-4 decoration-neutral-700 transition-all">
               Reset Environment
