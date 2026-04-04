@@ -67,7 +67,7 @@ export default function AdminPage() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <ShieldCheck className="w-6 h-6 text-indigo-400" />
-          <h1 className="text-lg font-bold text-white">GigShield <span className="text-indigo-400 font-medium">Admin</span></h1>
+          <h1 className="text-lg font-bold text-white">Dash-Cover <span className="text-indigo-400 font-medium">Admin</span></h1>
         </div>
         <div className="flex items-center gap-3">
           {stats?.storm_active && (
