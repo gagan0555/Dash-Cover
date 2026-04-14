@@ -4,6 +4,13 @@ import LandingPage from './pages/LandingPage'
 import DashboardPage from './pages/DashboardPage'
 import AdminPage from './pages/AdminPage'
 
+
+
+useEffect(() => {
+  fetch("https://dash-cover.onrender.com/")
+    .catch(() => console.log("Waking up the server..."));
+}, []);
+
 function App() {
   const [appState, setAppState] = useState('landing')
   const [workerId, setWorkerId] = useState(null)
