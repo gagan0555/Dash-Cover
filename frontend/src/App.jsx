@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import DashboardPage from './pages/DashboardPage'
@@ -6,12 +6,13 @@ import AdminPage from './pages/AdminPage'
 
 
 
-useEffect(() => {
+
+function App() {
+  useEffect(() => {
   fetch("https://dash-cover.onrender.com/")
     .catch(() => console.log("Waking up the server..."));
 }, []);
 
-function App() {
   const [appState, setAppState] = useState('landing')
   const [workerId, setWorkerId] = useState(null)
   const [enrollmentData, setEnrollmentData] = useState(null)
