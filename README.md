@@ -1,6 +1,7 @@
 # 🛵 Dash-Cover — AI-Powered Parametric Income Insurance for Q-Commerce Delivery Partners
 
 > **Guidewire DEVTrails 2026 | Team [ByteForge]**
+> **Try now link** - https://dash-cover-2.onrender.com
 > Persona: Grocery - Blinkit / Zepto
 
 ---
@@ -41,7 +42,6 @@ Dash-Cover is an **AI-enabled parametric income insurance platform** that is des
 - Income loss only — we don't cover your bike, your health, or anything else. Just your lost wages.
 
 > **Coverage Scope:** Lost working hours/wages only, caused by verified external disruptions.
-
 ---
 
 ## 3. Persona & Scenario Walkthrough
