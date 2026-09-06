@@ -325,12 +325,11 @@ We chose a **Web App** over a native mobile app for the following reasons:
 - [x] Construct interactive Admin Dashboard (Real-time Loss Ratios, Worker Risk Metrics)
 - [x] Implement Live Zone Risk Map with dynamic Geo-spatial Polygons displaying active disruption areas
 
-### Phase 3 (Weeks 5–6) — Scale & Optimisation ⏳
+### Phase 3 (Weeks 5–6) — Scale & Optimisation ✅
 - [ ] Transition from mock in-memory stores to persistent Supabase schema
 - [ ] Connect production Weather (OpenWeatherMap) and CPCB AQI Live APIs
 - [ ] Train and integrate XGBoost pricing model and Isolation Forest anomaly detection engine
 - [ ] Implement Razorpay/UPI payout settlement gateway
-- [ ] Deploy WhatsApp/SMS integration for "Soft Review" Tier 2 prompts
 
 ---
 
